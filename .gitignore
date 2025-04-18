@@ -1,0 +1,6 @@
+task.ps1
+bin/
+.pg_data/
+scripts/
+compose.yaml
+.dockerignore
