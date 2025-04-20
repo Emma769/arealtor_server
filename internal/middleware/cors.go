@@ -6,10 +6,9 @@ import (
 )
 
 type CorsOptions struct {
-	Origins     []string
-	Headers     []string
-	Methods     []string
-	Credentials bool
+	Origins []string
+	Headers []string
+	Methods []string
 }
 
 func EnableCorsWithOptions(opts *CorsOptions) func(next http.Handler) http.Handler {
@@ -20,10 +19,6 @@ func EnableCorsWithOptions(opts *CorsOptions) func(next http.Handler) http.Handl
 
 			origin := r.Header.Get("Origin")
 			method := r.Header.Get("Access-Control-Request-Method")
-
-			if opts.Credentials {
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
-			}
 
 			if origin != "" {
 				for i := range opts.Origins {

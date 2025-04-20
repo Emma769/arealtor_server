@@ -2,7 +2,6 @@ package user
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -39,8 +38,7 @@ func NewCtrl(store storer, cfg *config.Config, mgr *token.Manager) *Ctrl {
 func (ctrl Ctrl) Routes(r chi.Router) {
 	r.Post("/register", ctrl.register())
 	r.Post("/login", ctrl.login())
-	r.Delete("/logout", ctrl.logout())
-	r.Get("/refresh", ctrl.refresh())
+	r.Post("/refresh", ctrl.refresh())
 	r.With(middleware.RequireAuth).Get("/me", ctrl.getMe())
 }
 
@@ -69,6 +67,20 @@ func (ctrl *Ctrl) register() http.HandlerFunc {
 
 		return handlerlib.WriteJson(w, 201, user)
 	})
+}
+
+type AccessToken struct {
+	Value string `json:"value"`
+	Type  string `json:"type"`
+}
+
+type RefreshToken struct {
+	Value string `json:"value"`
+}
+
+type TokenPayload struct {
+	AccessToken  AccessToken   `json:"accessToken"`
+	RefreshToken *RefreshToken `json:"refreshToken,omitempty"`
 }
 
 func (ctrl *Ctrl) login() http.HandlerFunc {
@@ -109,33 +121,36 @@ func (ctrl *Ctrl) login() http.HandlerFunc {
 			return err
 		}
 
-    fmt.Println(ctrl.cfg.GoEnv == "production")
+		payload := TokenPayload{
+			AccessToken: AccessToken{
+				Value: pair.Access.Raw,
+				Type:  "Bearer",
+			},
+			RefreshToken: &RefreshToken{
+				Value: pair.Refresh.Token,
+			},
+		}
 
-		http.SetCookie(w, &http.Cookie{
-			Name:     "refresh_token",
-			Value:    pair.Refresh.Token,
-			SameSite: http.SameSiteLaxMode,
-			Path:     "/",
-			HttpOnly: true,
-			Secure:   ctrl.cfg.GoEnv == "production",
-			MaxAge:   int(ctrl.cfg.SessionExpire.Seconds()),
-		})
-
-		return handlerlib.WriteJson(w, 201, map[string]any{
-			"token": pair.Access.Raw,
-			"type":  "Bearer",
-		})
+		return handlerlib.WriteJson(w, 201, payload)
 	})
+}
+
+type RefreshTokenIn struct {
+	RefreshToken string `json:"refreshToken"`
 }
 
 func (ctrl *Ctrl) refresh() http.HandlerFunc {
 	return handlerlib.Wrap(func(w http.ResponseWriter, r *http.Request) error {
-		c, err := r.Cookie("refresh_token")
+		in, err := handlerlib.Bind[RefreshTokenIn](w, r)
 		if err != nil {
-			return handlerlib.NewError(403, "no cookie")
+			return handlerlib.NewError(422, err.Error())
 		}
 
-		user, err := ctrl.findBySession(r.Context(), c.Value)
+		if in.RefreshToken == "" {
+			return handlerlib.NewError(422, "refreshToken cannot be blank")
+		}
+
+		user, err := ctrl.findBySession(r.Context(), in.RefreshToken)
 
 		if err != nil && errors.Is(err, ErrNotFound) {
 			return handlerlib.NewError(403, "not logged in, login for access")
@@ -150,27 +165,14 @@ func (ctrl *Ctrl) refresh() http.HandlerFunc {
 			return err
 		}
 
-		return handlerlib.WriteJson(w, 200, map[string]any{
-			"token": t.Raw,
-			"type":  "Bearer",
-		})
-	})
-}
+		payload := TokenPayload{
+			AccessToken: AccessToken{
+				Value: t.Raw,
+				Type:  "Bearer",
+			},
+		}
 
-func (ctrl *Ctrl) logout() http.HandlerFunc {
-	return handlerlib.Wrap(func(w http.ResponseWriter, r *http.Request) error {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "refresh_token",
-			Value:    "",
-			SameSite: http.SameSiteLaxMode,
-			HttpOnly: true,
-			MaxAge:   -1,
-			Secure:   ctrl.cfg.GoEnv == "production",
-			Path:     "/",
-		})
-
-		w.WriteHeader(204)
-		return nil
+		return handlerlib.WriteJson(w, 200, payload)
 	})
 }
 

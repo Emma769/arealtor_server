@@ -57,10 +57,9 @@ func run() error {
 	}))
 
 	router.Use(middleware.EnableCorsWithOptions(&middleware.CorsOptions{
-		Origins:     []string{cfg.TrustedOrigin},
-		Headers:     []string{"Content-Type", "Accept", "Authorization"},
-		Methods:     []string{"GET", "POST", "OPTIONS", "PUT", "DELETE"},
-		Credentials: true,
+		Origins: []string{cfg.TrustedOrigin},
+		Headers: []string{"Content-Type", "Accept", "Authorization"},
+		Methods: []string{"GET", "POST", "OPTIONS", "PUT", "DELETE"},
 	}))
 
 	router.Use(middleware.Authenticate(middleware.NewAuthService(mgr, store)))
