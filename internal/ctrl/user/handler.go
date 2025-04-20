@@ -129,7 +129,7 @@ func (ctrl *Ctrl) refresh() http.HandlerFunc {
 	return handlerlib.Wrap(func(w http.ResponseWriter, r *http.Request) error {
 		c, err := r.Cookie("refresh_token")
 		if err != nil {
-			return handlerlib.NewError(403, "not logged in, login for access")
+			return handlerlib.NewError(403, "no cookie")
 		}
 
 		user, err := ctrl.findBySession(r.Context(), c.Value)
