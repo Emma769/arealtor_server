@@ -26,8 +26,6 @@ func EnableCorsWithOptions(opts *CorsOptions) func(next http.Handler) http.Handl
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 			}
 
-			fmt.Println(opts.Origins)
-
 			if origin != "" {
 				for i := range opts.Origins {
 					if opts.Origins[i] == origin {
