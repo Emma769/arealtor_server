@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -107,6 +108,8 @@ func (ctrl *Ctrl) login() http.HandlerFunc {
 		if err != nil {
 			return err
 		}
+
+    fmt.Println(ctrl.cfg.GoEnv == "production")
 
 		http.SetCookie(w, &http.Cookie{
 			Name:     "refresh_token",
